@@ -6,7 +6,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const copy = async () => {
   const oldFolderPath = join(__dirname, "files");
   const newFolderPath = join(__dirname, "files_copy");
+  copyFolder(oldFolderPath, newFolderPath);
+};
 
+await copy();
+
+async function copyFolder(oldFolderPath, newFolderPath) {
   let doesNewPathExist;
   try {
     await access(newFolderPath);
@@ -20,7 +25,9 @@ const copy = async () => {
 
   let fileList;
   try {
-    fileList = await readdir(oldFolderPath);
+    fileList = await readdir(oldFolderPath, {
+      withFileTypes: true,
+    });
   } catch (err) {
     if (err.code === "ENOENT") {
       throw new Error("FS operation failed");
@@ -30,15 +37,21 @@ const copy = async () => {
 
   await mkdir(newFolderPath);
 
-  fileList.forEach(async (fileName) => {
-    const srcFilePath = join(oldFolderPath, fileName);
-    const destFilePath = join(newFolderPath, fileName);
+  fileList.forEach(async (entity) => {
+    if (entity.isDirectory()) {
+      await copyFolder(
+        join(oldFolderPath, entity.name),
+        join(newFolderPath, entity.name)
+      );
+      return;
+    }
+
+    const srcFilePath = join(oldFolderPath, entity.name);
+    const destFilePath = join(newFolderPath, entity.name);
     try {
       await copyFile(srcFilePath, destFilePath);
     } catch (err) {
       throw err;
     }
   });
-};
-
-await copy();
+}
